@@ -99,33 +99,7 @@ function! vimclojure#MapPlug(mode, keys, plug)
 endfunction
 
 " A Buffer...
-if !exists("vimclojure#SplitPos")
-	let vimclojure#SplitPos = "top"
-endif
-
 let vimclojure#Buffer = {}
-
-function! vimclojure#Buffer.New() dict
-	if g:vimclojure#SplitPos == "left" || g:vimclojure#SplitPos == "right"
-		let o_sr = &splitright
-		if g:vimclojure#SplitPos == "left"
-			set nosplitright
-		else
-			set splitright
-		end
-		vnew
-		let &splitright = o_sr
-	else
-		let o_sb = &splitbelow
-		if g:vimclojure#SplitPos == "bottom"
-			set splitbelow
-		else
-			set nosplitbelow
-		end
-		new
-		let &splitbelow = o_sb
-	endif
-endfunction
 
 function! vimclojure#Buffer.goHere() dict
 	execute "buffer! " . self._buffer
@@ -160,8 +134,7 @@ let vimclojure#PreviewWindow = copy(vimclojure#Buffer)
 function! vimclojure#PreviewWindow.New() dict
 	pclose!
 
-	call g:vimclojure#Buffer.New()
-
+	execute &previewheight . "new"
 	set previewwindow
 	set winfixheight
 
@@ -475,8 +448,7 @@ let vimclojure#Repl._replCommands = [ ",close", ",st", ",ct" ]
 function! vimclojure#Repl.New() dict
 	let instance = copy(self)
 
-	call g:vimclojure#Buffer.New()
-
+	new
 	setlocal buftype=nofile
 	setlocal noswapfile
 
