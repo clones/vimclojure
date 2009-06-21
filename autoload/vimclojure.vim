@@ -99,33 +99,7 @@ function! vimclojure#MapPlug(mode, keys, plug)
 endfunction
 
 " A Buffer...
-if !exists("vimclojure#SplitPos")
-	let vimclojure#SplitPos = "top"
-endif
-
 let vimclojure#Buffer = {}
-
-function! vimclojure#Buffer.New() dict
-	if g:vimclojure#SplitPos == "left" || g:vimclojure#SplitPos == "right"
-		let o_sr = &splitright
-		if g:vimclojure#SplitPos == "left"
-			set nosplitright
-		else
-			set splitright
-		end
-		vnew
-		let &splitright = o_sr
-	else
-		let o_sb = &splitbelow
-		if g:vimclojure#SplitPos == "bottom"
-			set splitbelow
-		else
-			set nosplitbelow
-		end
-		new
-		let &splitbelow = o_sb
-	endif
-endfunction
 
 function! vimclojure#Buffer.goHere() dict
 	execute "buffer! " . self._buffer
@@ -160,8 +134,7 @@ let vimclojure#PreviewWindow = copy(vimclojure#Buffer)
 function! vimclojure#PreviewWindow.New() dict
 	pclose!
 
-	call g:vimclojure#Buffer.New()
-
+	execute &previewheight . "new"
 	set previewwindow
 	set winfixheight
 
@@ -371,26 +344,6 @@ function! vimclojure#RequireFile(all)
 	wincmd p
 endfunction
 
-function! vimclojure#RunTests(all)
-	let ns = b:vimclojure_namespace
-	let all = a:all ? "-all" : ""
-
-	let resultBuffer = g:vimclojure#PreviewWindow.New()
-
-	let cmd = ""
-	if ns != "user"
-		let cmd .= "(require :reload" . all . " '" . ns . ")"
-	endif
-	let cmd .= "(require 'clojure.contrib.test-is)"
-	let cmd .= "(clojure.contrib.test-is/run-tests (find-ns '" . ns ."))"
-	let result = vimclojure#ExecuteNailWithInput("Repl", cmd, "-r")
-
-	call resultBuffer.showText(result)
-	setfiletype clojure
-
-	wincmd p
-endfunction
-
 function! vimclojure#EvalFile()
 	let content = getbufline(bufnr("%"), 1, line("$"))
 	let file = vimclojure#BufferName()
@@ -495,8 +448,7 @@ let vimclojure#Repl._replCommands = [ ",close", ",st", ",ct" ]
 function! vimclojure#Repl.New() dict
 	let instance = copy(self)
 
-	call g:vimclojure#Buffer.New()
-
+	new
 	setlocal buftype=nofile
 	setlocal noswapfile
 
@@ -559,12 +511,24 @@ function! vimclojure#Repl.doReplCommand(cmd) dict
 	endif
 endfunction
 
+function! vimclojure#Repl.showPrompt() dict
+	call self.showText(self._prompt . " ")
+	normal G
+	startinsert!
+endfunction
+
 function! vimclojure#Repl.getCommand() dict
 	let ln = line("$")
 
-	while getline(ln) !~ "^" . self._prompt
+	while getline(ln) !~ "^" . self._prompt && ln > 0
 		let ln = ln - 1
 	endwhile
+
+	" Special Case: User deleted Prompt by accident. Insert a new one.
+	if ln == 0
+		call self.showPrompt()
+		return ""
+	endif
 
 	let cmd = vimclojure#Yank("l", ln . "," . line("$") . "yank l")
 
@@ -576,6 +540,11 @@ endfunction
 function! vimclojure#Repl.enterHook() dict
 	let cmd = self.getCommand()
 
+	" Special Case: Showed prompt (or user just hit enter).
+	if cmd == ""
+		return
+	endif
+
 	if self.isReplCommand(cmd)
 		call self.doReplCommand(cmd)
 		return
@@ -585,6 +554,7 @@ function! vimclojure#Repl.enterHook() dict
 	if result == "false"
 		execute "normal! GA\<CR>x"
 		normal ==x
+		startinsert!
 	else
 		let result = vimclojure#ExecuteNailWithInput("Repl", cmd,
 					\ "-r", "-i", self._id)
@@ -592,10 +562,8 @@ function! vimclojure#Repl.enterHook() dict
 
 		let self._historyDepth = 0
 		let self._history = [cmd] + self._history
-		call self.showText(self._prompt . " ")
-		normal G
+		call self.showPrompt()
 	endif
-	startinsert!
 endfunction
 
 function! vimclojure#Repl.upHistory() dict
