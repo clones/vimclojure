@@ -99,7 +99,33 @@ function! vimclojure#MapPlug(mode, keys, plug)
 endfunction
 
 " A Buffer...
+if !exists("vimclojure#SplitPos")
+	let vimclojure#SplitPos = "top"
+endif
+
 let vimclojure#Buffer = {}
+
+function! vimclojure#Buffer.New() dict
+	if g:vimclojure#SplitPos == "left" || g:vimclojure#SplitPos == "right"
+		let o_sr = &splitright
+		if g:vimclojure#SplitPos == "left"
+			set nosplitright
+		else
+			set splitright
+		end
+		vnew
+		let &splitright = o_sr
+	else
+		let o_sb = &splitbelow
+		if g:vimclojure#SplitPos == "bottom"
+			set splitbelow
+		else
+			set nosplitbelow
+		end
+		new
+		let &splitbelow = o_sb
+	endif
+endfunction
 
 function! vimclojure#Buffer.goHere() dict
 	execute "buffer! " . self._buffer
@@ -134,7 +160,8 @@ let vimclojure#PreviewWindow = copy(vimclojure#Buffer)
 function! vimclojure#PreviewWindow.New() dict
 	pclose!
 
-	execute &previewheight . "new"
+	call g:vimclojure#Buffer.New()
+
 	set previewwindow
 	set winfixheight
 
@@ -344,6 +371,26 @@ function! vimclojure#RequireFile(all)
 	wincmd p
 endfunction
 
+function! vimclojure#RunTests(all)
+	let ns = b:vimclojure_namespace
+	let all = a:all ? "-all" : ""
+
+	let resultBuffer = g:vimclojure#PreviewWindow.New()
+
+	let cmd = ""
+	if ns != "user"
+		let cmd .= "(require :reload" . all . " '" . ns . ")"
+	endif
+	let cmd .= "(require 'clojure.contrib.test-is)"
+	let cmd .= "(clojure.contrib.test-is/run-tests (find-ns '" . ns ."))"
+	let result = vimclojure#ExecuteNailWithInput("Repl", cmd, "-r")
+
+	call resultBuffer.showText(result)
+	setfiletype clojure
+
+	wincmd p
+endfunction
+
 function! vimclojure#EvalFile()
 	let content = getbufline(bufnr("%"), 1, line("$"))
 	let file = vimclojure#BufferName()
@@ -448,7 +495,8 @@ let vimclojure#Repl._replCommands = [ ",close", ",st", ",ct" ]
 function! vimclojure#Repl.New() dict
 	let instance = copy(self)
 
-	new
+	call g:vimclojure#Buffer.New()
+
 	setlocal buftype=nofile
 	setlocal noswapfile
 
