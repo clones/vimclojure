@@ -49,9 +49,7 @@ if has("gui_win32") && !exists("b:browsefilter")
 				\ "All Files (*.*)\t*.*\n"
 endif
 
-for ns in ['clojure.core', 'clojure.set', 'clojure.xml', 'clojure.zip',
-			\ 'clojure.walk', 'clojure.template', 'clojure.stacktrace',
-			\ 'clojure.inspector', 'clojure.test', 'clojure.test.tap']
+for ns in ['clojure.core', 'clojure.set', 'clojure.xml', 'clojure.zip']
 	call vimclojure#AddCompletions(ns)
 endfor
 
@@ -62,7 +60,7 @@ function! ClojureGetFoldingLevel(lineno)
 	function closure.f() dict
 		execute self.lineno
 
-		if vimclojure#SynIdName() =~ 'clojureParen\d' && vimclojure#Yank('l', 'normal "lyl') == '('
+		if vimclojure#SynIdName() =~ 'clojureParen\d' && vimclojure#Yank('l', 'normal! "lyl') == '('
 			return 1
 		endif
 
@@ -120,9 +118,6 @@ if exists("b:vimclojure_namespace")
 
 	call vimclojure#MapPlug("n", "rf", "RequireFile")
 	call vimclojure#MapPlug("n", "rF", "RequireFileAll")
-
-	call vimclojure#MakePlug("n", "RunTests", 'vimclojure#RunTests(0)')
-	call vimclojure#MapPlug("n", "rt", "RunTests")
 
 	call vimclojure#MakePlug("n", "MacroExpand",  'vimclojure#MacroExpand(0)')
 	call vimclojure#MakePlug("n", "MacroExpand1", 'vimclojure#MacroExpand(1)')
