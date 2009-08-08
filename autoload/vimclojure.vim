@@ -99,46 +99,7 @@ function! vimclojure#MapPlug(mode, keys, plug)
 endfunction
 
 " A Buffer...
-if !exists("vimclojure#SplitPos")
-	let vimclojure#SplitPos = "top"
-endif
-
 let vimclojure#Buffer = {}
-
-function! vimclojure#Buffer.New() dict
-	let instance = copy(self)
-
-	call self.MakeBuffer()
-	call self.Init(instance)
-
-	return instance
-endfunction
-
-function! vimclojure#Buffer.MakeBuffer()
-	if g:vimclojure#SplitPos == "left" || g:vimclojure#SplitPos == "right"
-		let o_sr = &splitright
-		if g:vimclojure#SplitPos == "left"
-			set nosplitright
-		else
-			set splitright
-		end
-		vnew
-		let &splitright = o_sr
-	else
-		let o_sb = &splitbelow
-		if g:vimclojure#SplitPos == "bottom"
-			set splitbelow
-		else
-			set nosplitbelow
-		end
-		new
-		let &splitbelow = o_sb
-	endif
-endfunction
-
-function! vimclojure#Buffer.Init(instance)
-	let a:instance._buffer = bufnr("%")
-endfunction
 
 function! vimclojure#Buffer.goHere() dict
 	execute "buffer! " . self._buffer
@@ -171,17 +132,9 @@ endfunction
 let vimclojure#PreviewWindow = copy(vimclojure#Buffer)
 
 function! vimclojure#PreviewWindow.New() dict
-	let instance = copy(self)
-
-	call g:vimclojure#Buffer.MakeBuffer()
-	call self.Init(instance)
-
-	return instance
-endfunction
-
-function! vimclojure#PreviewWindow.Init(instance) dict
 	pclose!
 
+	execute &previewheight . "new"
 	set previewwindow
 	set winfixheight
 
@@ -193,7 +146,7 @@ function! vimclojure#PreviewWindow.Init(instance) dict
 
 	call append(0, "; Use " . leader . "p to close this buffer!")
 
-	return a:instance
+	return copy(self)
 endfunction
 
 function! vimclojure#PreviewWindow.goHere() dict
@@ -391,26 +344,6 @@ function! vimclojure#RequireFile(all)
 	wincmd p
 endfunction
 
-function! vimclojure#RunTests(all)
-	let ns = b:vimclojure_namespace
-	let all = a:all ? "-all" : ""
-
-	let resultBuffer = g:vimclojure#PreviewWindow.New()
-
-	let cmd = ""
-	if ns != "user"
-		let cmd .= "(require :reload" . all . " '" . ns . ")"
-	endif
-	let cmd .= "(require 'clojure.contrib.test-is)"
-	let cmd .= "(clojure.contrib.test-is/run-tests (find-ns '" . ns ."))"
-	let result = vimclojure#ExecuteNailWithInput("Repl", cmd, "-r")
-
-	call resultBuffer.showText(result)
-	setfiletype clojure
-
-	wincmd p
-endfunction
-
 function! vimclojure#EvalFile()
 	let content = getbufline(bufnr("%"), 1, line("$"))
 	let file = vimclojure#BufferName()
@@ -506,9 +439,8 @@ endfunction
 
 " The Repl
 let vimclojure#Repl = copy(vimclojure#Buffer)
-let vimclojure#Repl.__superBufferInit = vimclojure#Repl.Init
 
-let vimclojure#Repl._prompt = "user=>"
+let vimclojure#Repl._prompt = "Clojure=>"
 let vimclojure#Repl._history = []
 let vimclojure#Repl._historyDepth = 0
 let vimclojure#Repl._replCommands = [ ",close", ",st", ",ct" ]
@@ -516,15 +448,7 @@ let vimclojure#Repl._replCommands = [ ",close", ",st", ",ct" ]
 function! vimclojure#Repl.New() dict
 	let instance = copy(self)
 
-	call g:vimclojure#Buffer.MakeBuffer()
-	call self.Init(instance)
-
-	return instance
-endfunction
-
-function! vimclojure#Repl.Init(instance) dict
-	call self.__superBufferInit(a:instance)
-
+	new
 	setlocal buftype=nofile
 	setlocal noswapfile
 
@@ -540,12 +464,13 @@ function! vimclojure#Repl.Init(instance) dict
 
 	call append(line("$"), ["Clojure", self._prompt . " "])
 
-	let a:instance._id = vimclojure#ExecuteNail("Repl", "-s")
+	let instance._id = vimclojure#ExecuteNail("Repl", "-s")
 	call vimclojure#ExecuteNailWithInput("Repl",
-				\ "(require 'clojure.stacktrace)", "-r",
-				\ "-i", a:instance._id)
+				\ "(require 'clojure.contrib.stacktrace)", "-r",
+				\ "-i", instance._id)
+	let instance._buffer = bufnr("%")
 
-	let b:vimclojure_repl = a:instance
+	let b:vimclojure_repl = instance
 
 	setfiletype clojure
 
@@ -569,16 +494,20 @@ function! vimclojure#Repl.doReplCommand(cmd) dict
 		stopinsert
 	elseif a:cmd == ",st"
 		let result = vimclojure#ExecuteNailWithInput("Repl",
-					\ "(clojure.stacktrace/print-stack-trace *e)", "-r",
+					\ "(clojure.contrib.stacktrace/print-stack-trace *e)", "-r",
 					\ "-i", self._id)
 		call self.showText(result)
-		call self.showPrompt()
+		call self.showText(self._prompt . " ")
+		normal! G
+		startinsert!
 	elseif a:cmd == ",ct"
 		let result = vimclojure#ExecuteNailWithInput("Repl",
-					\ "(clojure.stacktrace/print-cause-trace *e)", "-r",
+					\ "(clojure.contrib.stacktrace/print-cause-trace *e)", "-r",
 					\ "-i", self._id)
 		call self.showText(result)
-		call self.showPrompt()
+		call self.showText(self._prompt . " ")
+		normal! G
+		startinsert!
 	endif
 endfunction
 
@@ -633,13 +562,6 @@ function! vimclojure#Repl.enterHook() dict
 
 		let self._historyDepth = 0
 		let self._history = [cmd] + self._history
-
-		let namespace = vimclojure#ExecuteNailWithInput("Repl",
-					\ "(clojure.core/ns-name clojure.core/*ns*)",
-					\ "-r", "-I", "-i", self._id)
-		let b:vimclojure_namespace = namespace
-		let self._prompt = namespace . "=>"
-
 		call self.showPrompt()
 	endif
 endfunction
