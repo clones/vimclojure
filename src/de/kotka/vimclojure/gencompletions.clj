@@ -24,7 +24,6 @@
 
 (defn -main
   [nspace]
-  (require (symbol nspace))
   (let [completions (keys (ns-publics (symbol nspace)))]
     (with-out-file (str nspace "-keys.txt")
       (doseq [x (sort completions)]
