@@ -49,9 +49,7 @@ if has("gui_win32") && !exists("b:browsefilter")
 				\ "All Files (*.*)\t*.*\n"
 endif
 
-for ns in ['clojure.core', 'clojure.set', 'clojure.xml', 'clojure.zip',
-			\ 'clojure.walk', 'clojure.template', 'clojure.stacktrace',
-			\ 'clojure.inspector', 'clojure.test', 'clojure.test.tap']
+for ns in ['clojure.core', 'clojure.set', 'clojure.xml', 'clojure.zip']
 	call vimclojure#AddCompletions(ns)
 endfor
 
@@ -83,9 +81,6 @@ if exists("g:clj_want_folding") && g:clj_want_folding == 1 && 0 == 1
 endif
 
 call vimclojure#InitBuffer()
-
-call vimclojure#MakePlug("n", "AddToLispWords", 'vimclojure#AddToLispWords(expand("<cword>"))')
-call vimclojure#MapPlug("n", "aw", "AddToLispWords")
 
 if exists("b:vimclojure_namespace")
 	call vimclojure#MakePlug("n", "DocLookupWord", 'vimclojure#DocLookup(expand("<cword>"))')
@@ -124,9 +119,6 @@ if exists("b:vimclojure_namespace")
 	call vimclojure#MapPlug("n", "rf", "RequireFile")
 	call vimclojure#MapPlug("n", "rF", "RequireFileAll")
 
-	call vimclojure#MakePlug("n", "RunTests", 'vimclojure#RunTests(0)')
-	call vimclojure#MapPlug("n", "rt", "RunTests")
-
 	call vimclojure#MakePlug("n", "MacroExpand",  'vimclojure#MacroExpand(0)')
 	call vimclojure#MakePlug("n", "MacroExpand1", 'vimclojure#MacroExpand(1)')
 
@@ -152,8 +144,8 @@ if exists("b:vimclojure_namespace")
 	inoremap <Plug>ClojureReplUpHistory <C-O>:call b:vimclojure_repl.upHistory()<CR>
 	inoremap <Plug>ClojureReplDownHistory <C-O>:call b:vimclojure_repl.downHistory()<CR>
 
-	nnoremap <Plug>ClojureCloseResultBuffer :call vimclojure#ResultBuffer.CloseBuffer()<CR>
-	call vimclojure#MapPlug("n", "p", "CloseResultBuffer")
+	nnoremap <Plug>ClojureClosePreview :pclose!<CR>
+	call vimclojure#MapPlug("n", "p", "ClosePreview")
 
 	setlocal omnifunc=vimclojure#OmniCompletion
 
